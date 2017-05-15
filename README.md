@@ -13,7 +13,7 @@ Use Lumogon for Puppet data. Queries PuppetDB for latest report.
 ## Example
 
 ```
-[root@puppet ~]# puppet lumogon upload $(puppet config print certname)
+[root@puppet ~]# puppet lumogon reports $(puppet config print certname)
 http://reporter.app.lumogon.com/vBgvtQyeTqFc2SXB2QFDrGVRLmbY-emGKICqJYRR6AG=
 ```
 
@@ -30,7 +30,8 @@ OPTIONS:
   --debug                        - Whether to log debug information.
 
 ACTIONS:
-  upload    Upload a node's latest report to Lumogon
+  facts      Upload a node's facts to Lumogon
+  reports    Upload a node's latest report to Lumogon
 
 See 'puppet man lumogon' or 'man puppet-lumogon' for full help.
 ```
