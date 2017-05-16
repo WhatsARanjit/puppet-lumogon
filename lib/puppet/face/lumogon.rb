@@ -80,8 +80,8 @@ Puppet::Face.define(:lumogon, '0.1.0') do
   end
 
   action :fact do
-    summary 'Upload a node\'s facts to Lumogon'
-    arguments '[fact_name]'
+    summary 'Upload a fact from all nodes to Lumogon'
+    arguments '[fact_name],[fact_name]'
 
     option '--puppetdb PDBSERVER' do
       summary 'Provide PuppetDB server'
@@ -98,11 +98,15 @@ Puppet::Face.define(:lumogon, '0.1.0') do
       puppetdb_port     = options[:puppetdb_port] || puppetdb_config['port']
       puppetdb_endpoint = puppetdb_config['endpoint']
 
-      node_report = lumogon.do_https(
-        "https://#{puppetdb_server}:#{puppetdb_port}/#{puppetdb_endpoint}/facts/#{factname}",
-        'GET',
-        )
-      lumogon.process_fact(node_report.body)
+      node_report = []
+      factname.split(',').each do |f|
+        data = lumogon.do_https(
+          "https://#{puppetdb_server}:#{puppetdb_port}/#{puppetdb_endpoint}/facts/#{f}",
+          'GET',
+          ).body
+        node_report << JSON.parse(data)
+      end
+      lumogon.process_fact(node_report.flatten)
     end
 
     when_rendering :console do |output|

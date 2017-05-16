@@ -30,6 +30,7 @@ OPTIONS:
   --debug                        - Whether to log debug information.
 
 ACTIONS:
+  fact       Upload a fact from all nodes to Lumogon
   facts      Upload a node's facts to Lumogon
   reports    Upload a node's latest report to Lumogon
 

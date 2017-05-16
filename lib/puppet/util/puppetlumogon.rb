@@ -33,8 +33,7 @@ class Puppet::Util::Puppetlumogon
     end
   end
 
-  def process_fact(fact)
-    raw_fact  = JSON.parse(fact)
+  def process_fact(raw_fact)
     send_fact = lumogonify_fact(raw_fact)
 
     res   = do_https('https://consumer.app.lumogon.com/api/v1', method = 'post', send_fact)
@@ -94,31 +93,15 @@ class Puppet::Util::Puppetlumogon
   private
 
   def lumogonify_fact(raw)
-    #@certname = raw.first['certname']
-
     @lumogon_hash = {
       '$schema'        => 'http://puppet.com/lumogon/core/draft-01/schema#1',
-      'containers'     => {
-        @certname => {},
-      },
+      'generated'      => Time.new,
+      'containers'     => write_fact(raw),
       'client_version' => {
         'BuildSHA'     => false,
         'BuildTime'    => false,
         'BuildVersion' => false,
       },
-    }
-    @lumogon_hash['containers'][@certname] = {
-      '$schema'             => 'http://puppet.com/lumogon/containerreport/draft-01/schema#1',
-      'capabilities'        => {},
-      'container_id'        => @certname,
-      'container_name'      => @certname,
-    }
-    @lumogon_hash['containers'][@certname]['capabilities']['facts'] = {
-      '$schema'   => 'http://puppet.com/lumogon/capability/host/draft-01/schema#1',
-      'harvestid' => false,
-      'title'     => 'Facts',
-      'type'      => 'attached',
-      'payload'   => write_facts(raw),
     }
     @lumogon_hash
   end
@@ -128,6 +111,7 @@ class Puppet::Util::Puppetlumogon
 
     @lumogon_hash = {
       '$schema'        => 'http://puppet.com/lumogon/core/draft-01/schema#1',
+      'generated'      => Time.new,
       'containers'     => {
         @certname => {},
       },
@@ -153,41 +137,12 @@ class Puppet::Util::Puppetlumogon
     @lumogon_hash
   end
 
-  def write_fact(raw)
-    data = Hash.new
-    raw.each do |node|
-      @lumogon_hash['containers'][node['certname']] = {
-        '$schema'             => 'http://puppet.com/lumogon/containerreport/draft-01/schema#1',
-        'capabilities'        => {},
-        'container_id'        => @certname,
-        'container_name'      => @certname,
-      }
-    end
-    data
-  end
-
-  def write_facts(raw)
-    data = Hash.new
-    raw.each do |fact|
-      key = fact['name']
-      case fact['value']
-      when Array
-        value = fact['value'].join(', ')
-      when Hash
-        value = fact['value'].flatten.join(', ')
-      else
-        value = fact['value']
-      end
-      data[key] = value
-    end
-    data
-  end
-
   def lumogonify(raw)
     @certname = raw['certname']
 
     @lumogon_hash = {
       '$schema'        => 'http://puppet.com/lumogon/core/draft-01/schema#1',
+      'generated'      => raw['end_time'],
       'containers'     => {
         @certname => {},
       },
@@ -239,6 +194,52 @@ class Puppet::Util::Puppetlumogon
     }
     write_resource_events(raw)
     @lumogon_hash
+  end
+
+  def write_fact(raw)
+    data = Hash.new
+    raw.each do |node|
+      @certname = node['certname']
+      unless data[@certname]
+        data[@certname] = {
+          '$schema'        => 'http://puppet.com/lumogon/containerreport/draft-01/schema#1',
+          'capabilities'   => {},
+          'container_id'   => @certname,
+          'container_name' => @certname,
+        }
+      end
+      unless data[@certname]['capabilities']['facts']
+        data[@certname]['capabilities']['facts'] = {
+          '$schema'   => 'http://puppet.com/lumogon/capability/host/draft-01/schema#1',
+          'harvestid' => false,
+          'title'     => 'Facts',
+          'type'      => 'attached',
+          'payload'   => {
+            node['name'] => node['value'].to_s,
+          }
+        }
+      else
+        data[@certname]['capabilities']['facts']['payload'][node['name']] = node['value'].to_s
+      end
+    end
+    data
+  end
+
+  def write_facts(raw)
+    data = Hash.new
+    raw.each do |fact|
+      key = fact['name']
+      case fact['value']
+      when Array
+        value = fact['value'].join(', ')
+      when Hash
+        value = fact['value'].flatten.join(', ')
+      else
+        value = fact['value']
+      end
+      data[key] = value
+    end
+    data
   end
 
   def write_resource_events(raw)
